@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { WhatsAppIcon } from "@/components/WhatsAppIcon"
@@ -7,7 +8,7 @@ import { prisma } from "@/lib/db"
 import { formatBRL } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-type ProductTeaserCard = { id: string; name: string; price: number; category: string; gradient: string }
+type ProductTeaserCard = { id: string; name: string; price: number; category: string; gradient: string; image: string }
 
 const marqueeItems = [
   "Feito à mão",
@@ -42,36 +43,29 @@ function ProductTeaserCard({
           product.gradient ?? "from-terracotta-300 to-copper-400"
         )}
       >
-        <svg
-          aria-hidden
-          className="absolute inset-0 h-full w-full opacity-10"
-        >
-          <defs>
-            <pattern
-              id={`teaser-stitch-${product.id}`}
-              x="0"
-              y="0"
-              width="14"
-              height="14"
-              patternUnits="userSpaceOnUse"
-            >
-              <path
-                d="M7 0 L7 7 M0 7 L7 7"
-                stroke="white"
-                strokeWidth="0.7"
-                fill="none"
-              />
-            </pattern>
-          </defs>
-          <rect
-            width="100%"
-            height="100%"
-            fill={`url(#teaser-stitch-${product.id})`}
+        {product.image.startsWith("https://") ? (
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            className="object-cover"
+            sizes="176px"
           />
-        </svg>
-        <span className="font-serif text-5xl text-cream-50/90 drop-shadow select-none">
-          {product.name.charAt(0)}
-        </span>
+        ) : (
+          <>
+            <svg aria-hidden className="absolute inset-0 h-full w-full opacity-10">
+              <defs>
+                <pattern id={`teaser-stitch-${product.id}`} x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+                  <path d="M7 0 L7 7 M0 7 L7 7" stroke="white" strokeWidth="0.7" fill="none" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill={`url(#teaser-stitch-${product.id})`} />
+            </svg>
+            <span className="font-serif text-5xl text-cream-50/90 drop-shadow select-none">
+              {product.name.charAt(0)}
+            </span>
+          </>
+        )}
       </div>
       <div className="p-3 space-y-0.5">
         <p className="font-serif text-[0.82rem] leading-snug text-ink line-clamp-2">
@@ -101,6 +95,7 @@ export async function Hero() {
     price: p.price,
     category: p.category,
     gradient: gradientMap[p.category] ?? "from-terracotta-300 to-copper-400",
+    image: p.image,
   }))
 
   return (

@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 import { Star } from "lucide-react"
 import type { ProductCardData } from "@/lib/types"
@@ -6,6 +7,10 @@ import { Button } from "@/components/ui/button"
 import { formatBRL } from "@/lib/format"
 import { buildWhatsAppUrl } from "@/lib/whatsapp"
 import { cn } from "@/lib/utils"
+
+function hasRealImage(image: string): boolean {
+  return image.startsWith("https://") || image.startsWith("http://")
+}
 
 type Props = { product: ProductCardData }
 
@@ -26,6 +31,7 @@ export function ProductCard({ product }: Props) {
     >
       {/* Image area */}
       <div className="relative aspect-[4/5] overflow-hidden">
+        {/* Gradiente sempre presente — fundo enquanto a foto carrega ou placeholder sem foto */}
         <div
           className={cn(
             "absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-[1.04]",
@@ -34,22 +40,33 @@ export function ProductCard({ product }: Props) {
           aria-hidden
         />
 
-        {/* Textile stitch SVG overlay */}
-        <svg aria-hidden className="absolute inset-0 h-full w-full" style={{ opacity: 0.09 }}>
-          <defs>
-            <pattern id={`stitch-${product.slug}`} x="0" y="0" width="18" height="18" patternUnits="userSpaceOnUse">
-              <path d="M9 0 L9 9 M0 9 L9 9" stroke="white" strokeWidth="0.8" fill="none" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill={`url(#stitch-${product.slug})`} />
-        </svg>
-
-        {/* Monogram */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="font-serif text-8xl font-light text-cream-50/80 drop-shadow select-none transition-transform duration-500 group-hover:scale-110">
-            {initial}
-          </span>
-        </div>
+        {hasRealImage(product.image) ? (
+          /* Foto real (Vercel Blob) */
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          />
+        ) : (
+          /* Placeholder: padrão de costura + monograma */
+          <>
+            <svg aria-hidden className="absolute inset-0 h-full w-full" style={{ opacity: 0.09 }}>
+              <defs>
+                <pattern id={`stitch-${product.slug}`} x="0" y="0" width="18" height="18" patternUnits="userSpaceOnUse">
+                  <path d="M9 0 L9 9 M0 9 L9 9" stroke="white" strokeWidth="0.8" fill="none" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill={`url(#stitch-${product.slug})`} />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-serif text-8xl font-light text-cream-50/80 drop-shadow select-none transition-transform duration-500 group-hover:scale-110">
+                {initial}
+              </span>
+            </div>
+          </>
+        )}
 
         {/* Category badge */}
         {product.categoryName && (
