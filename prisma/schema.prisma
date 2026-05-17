@@ -1,0 +1,54 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  price       Float
+  category    String
+  image       String
+  featured    Boolean  @default(false)
+  available   Boolean  @default(true)
+  materials   String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  gradient    String
+  iconName    String
+  createdAt   DateTime @default(now())
+}
+
+model SiteSettings {
+  id              String @id @default("main")
+  whatsappNumber  String
+  whatsappMessage String
+  instagram       String
+  instagramUrl    String
+  email           String @default("")
+  artisanName     String
+  city            String
+}
+
+model SaleRecord {
+  id          String   @id @default(cuid())
+  productSlug String
+  productName String
+  price       Float
+  month       Int
+  year        Int
+  createdAt   DateTime @default(now())
+}

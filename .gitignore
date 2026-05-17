@@ -37,3 +37,9 @@ next-env.d.ts
 
 # Claude Code local settings (machine-specific permissions)
 .claude/settings.local.json
+
+# SQLite database (local data — do not commit)
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal

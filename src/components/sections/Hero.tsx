@@ -2,10 +2,11 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { WhatsAppIcon } from "@/components/WhatsAppIcon"
 import { buildWhatsAppUrl } from "@/lib/whatsapp"
-import { getFeaturedProducts, type Product } from "@/data/products"
-import { categories } from "@/data/categories"
+import { prisma } from "@/lib/db"
 import { formatBRL } from "@/lib/format"
 import { cn } from "@/lib/utils"
+
+type ProductTeaserCard = { id: string; name: string; price: number; category: string; gradient: string }
 
 const marqueeItems = [
   "Feito à mão",
@@ -19,14 +20,13 @@ const marqueeItems = [
 const avatarLetters = ["M", "T", "C", "B"] as const
 const avatarColors = ["#B5654A", "#C28C5C", "#DC9173", "#8B9670"] as const
 
-function ProductTeaser({
+function ProductTeaserCard({
   product,
   className,
 }: {
-  product: Product
+  product: ProductTeaserCard
   className?: string
 }) {
-  const category = categories.find((c) => c.slug === product.category)
   return (
     <article
       className={cn(
@@ -38,7 +38,7 @@ function ProductTeaser({
       <div
         className={cn(
           "relative flex aspect-[3/4] items-center justify-center bg-gradient-to-br",
-          category?.gradient ?? "from-terracotta-300 to-copper-400"
+          product.gradient ?? "from-terracotta-300 to-copper-400"
         )}
       >
         <svg
@@ -84,9 +84,22 @@ function ProductTeaser({
   )
 }
 
-export function Hero() {
+export async function Hero() {
   const whatsappUrl = buildWhatsAppUrl()
-  const featured = getFeaturedProducts().slice(0, 3)
+  const rows = await prisma.product.findMany({
+    where: { featured: true },
+    orderBy: { createdAt: "desc" },
+    take: 3,
+  })
+  const catRows = await prisma.category.findMany({ select: { slug: true, gradient: true } })
+  const gradientMap = Object.fromEntries(catRows.map((c) => [c.slug, c.gradient]))
+  const featured: ProductTeaserCard[] = rows.map((p) => ({
+    id: p.slug,
+    name: p.name,
+    price: p.price,
+    category: p.category,
+    gradient: gradientMap[p.category] ?? "from-terracotta-300 to-copper-400",
+  }))
 
   return (
     <section className="relative overflow-hidden">
@@ -196,19 +209,19 @@ export function Hero() {
           />
 
           {featured[0] && (
-            <ProductTeaser
+            <ProductTeaserCard
               product={featured[0]}
               className="absolute left-4 top-0 z-20 -rotate-3"
             />
           )}
           {featured[1] && (
-            <ProductTeaser
+            <ProductTeaserCard
               product={featured[1]}
               className="absolute right-0 top-16 z-30 rotate-2"
             />
           )}
           {featured[2] && (
-            <ProductTeaser
+            <ProductTeaserCard
               product={featured[2]}
               className="absolute bottom-0 left-24 z-10 -rotate-1"
             />
