@@ -51,7 +51,7 @@ Site-vitrine para a loja artesanal **Ju Artes, Costura Criativa**. Clientes nave
 | `/admin/(auth)/categorias` | Server Component | Listagem de categorias |
 | `/admin/(auth)/categorias/nova` | Server Component | Usa `CategoryForm` (Client Component) |
 | `/admin/(auth)/categorias/[slug]` | Server Component | Usa `CategoryForm` pré-preenchido |
-| `/admin/(auth)/configuracoes` | Server Component | WhatsApp, Instagram, email, cidade |
+| `/admin/(auth)/configuracoes` | Server Component | Usa `SettingsForm` (Client Component) |
 | `/admin/(auth)/vendas` | Server Component | Registro manual de vendas; usa `SaleForm` (Client Component) |
 
 ### Route group `(auth)`
@@ -77,7 +77,7 @@ Todas as páginas autenticadas ficam em `src/app/admin/(auth)/`. O layout em `sr
 
 ### Fluxo de dados — site público
 
-Todos os dados vêm do banco. Não existe mais `src/data/*.ts` com dados mockados.
+Todos os dados vêm do banco. Não existe `src/data/*.ts` com dados mockados.
 
 ```
 layout.tsx (async)
@@ -117,15 +117,31 @@ Usar sempre esses helpers ao mapear produtos do banco para o ProductCard — evi
 - Cookie: `ju-artes-admin`, criptografado com `SESSION_SECRET`
 
 ### Server Actions (`src/lib/actions/`)
-| Arquivo | Exports |
-|---------|---------|
-| `auth.ts` | `loginAction`, `logoutAction` |
-| `products.ts` | `createProduct`, `updateProduct`, `deleteProduct`, `toggleProductAvailability` |
-| `categories.ts` | `createCategory`, `updateCategory`, `deleteCategory` |
-| `settings.ts` | `getSettings`, `updateSettings` |
-| `sales.ts` | `createSale`, `deleteSale`, `getSalesByMonth` |
+| Arquivo | Exports | Tipo de retorno |
+|---------|---------|-----------------|
+| `auth.ts` | `loginAction`, `logoutAction` | `Promise<void>` |
+| `products.ts` | `createProduct`, `updateProduct`, `deleteProduct`, `toggleProductAvailability` | `Promise<ProductFormState>` |
+| `categories.ts` | `createCategory`, `updateCategory`, `deleteCategory` | `Promise<CategoryFormState>` |
+| `settings.ts` | `getSettings`, `updateSettings` | `Promise<SettingsFormState>` |
+| `sales.ts` | `createSale`, `deleteSale`, `getSalesByMonth` | `Promise<SaleFormState>` |
 
-Todas as actions usadas diretamente em `<form action>` devem retornar `Promise<void>`. Quando uma action retorna dados, criar um wrapper void na própria page com `"use server"`.
+Actions usadas com `useFormState` têm assinatura `(prevState: State, formData: FormData) => Promise<State>`. Actions que redirecionam em caso de sucesso retornam o estado de erro e nunca chegam ao `return` após o `redirect()`.
+
+### Feedback nos formulários admin
+Todos os formulários usam `useFormState` do `react-dom` e exibem o componente `FormAlert` (`src/components/admin/FormAlert.tsx`) para mensagens de sucesso (verde) e erro (vermelho). Formulários que redirecionam em sucesso (produto, categoria) só exibem erro quando algo falha.
+
+### Upload de imagens (Vercel Blob)
+`createProduct` / `updateProduct` fazem upload via `@vercel/blob` (`put()`), que retorna uma URL pública permanente armazenada no campo `image` do banco. O `deleteProduct` remove o arquivo do Blob automaticamente (`del()`).
+
+- **Produção:** funciona nativamente (filesystem do Vercel é read-only, o Blob resolve isso)
+- **Local:** requer `BLOB_READ_WRITE_TOKEN` em `.env.local` (obtido via `vercel env pull`)
+- **Store:** `ju-artes-images` (store_A0aRRe4oKcZvfd1b), região `iad1`, acesso público
+
+**Exibição de imagens no `ProductCard`:**
+- `product.image` começa com `https://` → renderiza com `next/image` (lazy, WebP automático)
+- Outros valores → exibe gradiente da categoria + padrão SVG de costura + monograma
+
+`next.config.mjs` permite o domínio `*.public.blob.vercel-storage.com` no `next/image`.
 
 ### Utilitários principais
 - `src/lib/whatsapp.ts` — `buildWhatsAppUrl({ productName?, price?, customMessage?, settings? })`: sempre usar para links WhatsApp; nunca hardcodar `wa.me`. Passar `settings` de `getSettings()`.
@@ -151,13 +167,13 @@ Strict mode. `any` e `@ts-ignore` proibidos.
 Devem ter `target="_blank" rel="noopener noreferrer"`.
 
 ### Boundary `"use client"`
-Usar apenas quando o componente precisa de estado, efeitos, APIs de browser ou `useSearchParams`. Todas as seções da home são Server Components. Formulários do admin (`ProductForm`, `CategoryForm`, `SaleForm`) são Client Components por precisarem de estado local.
+Usar apenas quando o componente precisa de estado, efeitos, APIs de browser ou `useSearchParams`. Todas as seções da home são Server Components. Formulários do admin (`ProductForm`, `CategoryForm`, `SettingsForm`, `SaleForm`) são Client Components por precisarem de `useFormState` e estado local.
 
 ### Header é Client Component
 `Header` tem scroll detection e drawer state. Por isso aceita `whatsappUrl: string` como prop — o layout async faz `getSettings()` e passa a URL. Nunca chamar `buildWhatsAppUrl()` diretamente dentro do `Header`.
 
-### Upload de imagens
-`createProduct` / `updateProduct` gravam o arquivo em `public/products/<slug>.<ext>` via `fs.writeFile`. O campo `image` armazena o path público `/products/<slug>.<ext>`. `ProductCard` renderiza placeholder com gradiente enquanto não há foto real.
+### Regex em atributos `pattern` de inputs HTML
+Usar `[-a-z0-9]+` (hífem no início da classe) em vez de `[a-z0-9-]+`. Browsers modernos usam o modo Unicode `v` que trata `[a-z0-9-]` como ambíguo.
 
 ## Design system
 
@@ -178,6 +194,7 @@ Admin reutiliza a mesma paleta: `cream-50` de fundo, `terracotta-500` em botões
 |----------|---------|------------|
 | `DATABASE_URL` | `.env` + Vercel | Neon Postgres (pooled) |
 | `DATABASE_URL_UNPOOLED` | `.env.local` + Vercel | Neon Postgres (direto, para migrations) |
+| `BLOB_READ_WRITE_TOKEN` | `.env.local` + Vercel | Token do Vercel Blob para upload de imagens |
 | `ADMIN_USERNAME` | `.env.local` + Vercel | Login do admin |
 | `ADMIN_PASSWORD` | `.env.local` + Vercel | Senha do admin |
 | `SESSION_SECRET` | `.env.local` + Vercel | Chave de criptografia do cookie (mín. 32 chars) |
