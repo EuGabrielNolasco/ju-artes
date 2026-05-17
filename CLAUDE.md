@@ -14,142 +14,186 @@ npm run lint       # ESLint only
 npm start          # serve the production build
 
 # Database
-npm run db:migrate # npx prisma migrate dev — apply schema changes
-npm run db:seed    # populate DB with 12 products, 4 categories, settings, sample sales
-npm run db:studio  # Prisma Studio GUI at http://localhost:5555
+npm run db:migrate # npx prisma migrate dev — cria nova migration
+npm run db:seed    # popula o banco com 12 produtos, 4 categorias, settings e vendas de exemplo
+npm run db:studio  # Prisma Studio GUI em http://localhost:5555
 ```
 
-**First-time setup:**
+**Configuração inicial (primeira vez):**
 ```bash
 npm install
-npm run db:seed    # creates prisma/dev.db and populates it
+# Copiar .env.local com as credenciais do Neon (obter via: vercel env pull .env.local)
+npm run db:seed
 npm run dev
 ```
 
-## What this project is
+## O que é este projeto
 
-A catalog website ("vitrine") for the artisan store **Ju Artes, Costura Criativa**. Customers browse products and contact the artisan via WhatsApp — no cart, no checkout. The site has two distinct layers:
+Site-vitrine para a loja artesanal **Ju Artes, Costura Criativa**. Clientes navegam no catálogo e entram em contato pelo WhatsApp — sem carrinho nem checkout. O projeto tem duas camadas:
 
-1. **Public site** (`/`, `/catalogo`) — artisan-aesthetic storefront, reads all data from SQLite
-2. **Admin panel** (`/admin/*`) — password-protected management area for products, categories, settings, and sales tracking
+1. **Site público** (`/`, `/catalogo`) — vitrine artesanal, todos os dados vêm do banco PostgreSQL (Neon)
+2. **Painel admin** (`/admin/*`) — área de gestão protegida por login (produtos, categorias, configurações de contato, registro de vendas)
 
-## Architecture
+**Deploy:** Vercel (projeto `ju-artes` em `gabriel-nolasco-s-projects`) conectado ao repositório GitHub. O banco é Neon Postgres provisionado via integração nativa da Vercel. Cada push para `main` trigga um novo deploy automaticamente.
 
-### Pages
-| Route | Type | Description |
-|-------|------|-------------|
+## Arquitetura
+
+### Páginas
+| Rota | Tipo | Descrição |
+|------|------|-----------|
 | `/` | Server Component | Home — Hero, FeaturedProducts, Categories, About, Testimonials, HowToBuy |
-| `/catalogo` | Server → Client | Server fetches products+categories from DB, passes as props to `CatalogClient` |
-| `/admin` | Server Component | Login page — **outside** the auth layout, no session check here |
-| `/admin/(auth)/dashboard` | Server Component | Charts + stats |
-| `/admin/(auth)/produtos` | Server Component | Product list with inline toggle actions |
-| `/admin/(auth)/produtos/novo` | Server Component | Uses `ProductForm` (Client Component) |
-| `/admin/(auth)/produtos/[slug]` | Server Component | Uses `ProductForm` pre-filled |
-| `/admin/(auth)/categorias` | Server Component | Category list |
-| `/admin/(auth)/categorias/nova` | Server Component | Uses `CategoryForm` (Client Component) |
-| `/admin/(auth)/categorias/[slug]` | Server Component | Uses `CategoryForm` pre-filled |
-| `/admin/(auth)/configuracoes` | Server Component | Site settings form |
-| `/admin/(auth)/vendas` | Server Component | Sales log — uses `SaleForm` (Client Component) |
+| `/catalogo` | Server → Client | Server busca dados do banco, passa como props para `CatalogClient` |
+| `/admin` | Server Component | Login — **fora** do layout de auth (evita redirect loop) |
+| `/admin/(auth)/dashboard` | Server Component | Gráficos e totais |
+| `/admin/(auth)/produtos` | Server Component | Listagem com toggle de disponibilidade inline |
+| `/admin/(auth)/produtos/novo` | Server Component | Usa `ProductForm` (Client Component) |
+| `/admin/(auth)/produtos/[slug]` | Server Component | Usa `ProductForm` pré-preenchido |
+| `/admin/(auth)/categorias` | Server Component | Listagem de categorias |
+| `/admin/(auth)/categorias/nova` | Server Component | Usa `CategoryForm` (Client Component) |
+| `/admin/(auth)/categorias/[slug]` | Server Component | Usa `CategoryForm` pré-preenchido |
+| `/admin/(auth)/configuracoes` | Server Component | WhatsApp, Instagram, email, cidade |
+| `/admin/(auth)/vendas` | Server Component | Registro manual de vendas; usa `SaleForm` (Client Component) |
 
 ### Route group `(auth)`
-All admin pages that require authentication live under `src/app/admin/(auth)/`. The layout at `src/app/admin/(auth)/layout.tsx` calls `requireAuth()`, which redirects to `/admin` if the session cookie is invalid. The login page at `src/app/admin/page.tsx` is intentionally **outside** this group — putting it inside would cause an infinite redirect loop.
+Todas as páginas autenticadas ficam em `src/app/admin/(auth)/`. O layout em `src/app/admin/(auth)/layout.tsx` chama `requireAuth()`, que redireciona para `/admin` se a sessão for inválida. A página de login (`src/app/admin/page.tsx`) fica **fora** desse grupo intencionalmente — colocá-la dentro causaria loop infinito de redirecionamento.
 
-### Database (SQLite + Prisma 5)
-- File: `prisma/dev.db` (ignored by git)
+### Admin mobile
+`AdminShell` (`src/components/admin/AdminShell.tsx`) é um Client Component que controla o estado `open` do sidebar. Em mobile (`< lg`): sidebar escondida com `-translate-x-full`, botão hambúrguer no top bar abre com `translate-x-0`. Em desktop: sidebar sempre visível via `lg:relative lg:translate-x-0`.
+
+### Banco de dados (PostgreSQL + Prisma 5)
+- **Produção:** Neon Postgres (provisionado via Vercel Marketplace)
+- **Local:** banco Neon remoto acessado via credenciais em `.env.local`
 - Schema: `prisma/schema.prisma`
-- Seed: `prisma/seed.ts` (run via `npm run db:seed`)
-- Client singleton: `src/lib/db.ts` — uses `globalThis` pattern to avoid hot-reload connection leaks
+- Seed: `prisma/seed.ts`
+- Cliente singleton: `src/lib/db.ts` — padrão `globalThis` para evitar connection leaks em hot-reload
 
 **Models:**
 - `Product` — slug (unique), name, description, price, category (slug ref), image, featured, available, materials (JSON string)
 - `Category` — slug (unique), name, description, gradient (Tailwind classes), iconName
-- `SiteSettings` — single row (`id: "main"`), all contact/brand config
-- `SaleRecord` — manual sale entries logged by admin; drives the line chart on dashboard
+- `SiteSettings` — linha única (`id: "main"`), toda configuração de contato/marca
+- `SaleRecord` — registros manuais de vendas; alimenta o gráfico de linha no dashboard
 
-**`materials` field:** stored as JSON string (`"[\"Linho natural\",\"Alças reforçadas\"]"`). Always `JSON.parse()` before use, `JSON.stringify()` before save.
+**Campo `materials`:** armazenado como JSON string. Sempre `JSON.parse()` ao ler, `JSON.stringify()` ao salvar.
 
-### Authentication (iron-session)
-- `src/lib/auth.ts` — `getSession()` and `requireAuth()` helpers
-- `middleware.ts` — protects `/admin/:path+` at the edge; passes `/admin` (login) through untouched
-- Credentials read from env vars (`ADMIN_USERNAME`, `ADMIN_PASSWORD`)
-- Session cookie: `ju-artes-admin`, encrypted with `SESSION_SECRET`
+### Fluxo de dados — site público
+
+Todos os dados vêm do banco. Não existe mais `src/data/*.ts` com dados mockados.
+
+```
+layout.tsx (async)
+  └─ getSettings()          → WhatsApp URL para Header
+  └─ Header (Client)        → recebe whatsappUrl como prop
+  └─ Footer (async)         → getSettings() + prisma.category.findMany()
+  └─ WhatsAppFloatingButton → getSettings()
+
+page.tsx (/)
+  └─ Hero (async)           → prisma.product + prisma.category + getSettings()
+  └─ FeaturedProducts       → prisma.product (featured) + buildCatMap()
+  └─ Categories             → prisma.category + contagem de produtos disponíveis
+  └─ HowToBuy               → getSettings()
+
+page.tsx (/catalogo) (async)
+  └─ prisma.product + prisma.category → toProductCardData() → CatalogClient (Client)
+```
+
+`src/lib/getSettings.ts` — função com `React.cache()` que busca `SiteSettings` uma vez por request, compartilhada por todos os Server Components.
+
+### Tipos compartilhados (`src/lib/types.ts`)
+```ts
+ProductCardData  // shape passado para ProductCard (inclui gradient e categoryName do banco)
+CategoryData     // shape passado para CatalogClient e CatalogFilters
+```
+
+### Utilitários de mapeamento (`src/lib/mapProduct.ts`)
+- `buildCatMap(categories)` — cria `Record<slug, { name, gradient }>` para lookup O(1)
+- `toProductCardData(prismaProduct, catMap)` — converte linha do Prisma em `ProductCardData`
+
+Usar sempre esses helpers ao mapear produtos do banco para o ProductCard — evita lógica duplicada.
+
+### Autenticação (iron-session)
+- `src/lib/auth.ts` — `getSession()` e `requireAuth()`
+- `middleware.ts` — protege `/admin/:path+` no edge; deixa `/admin` (login) passar sem verificação
+- Credenciais via env vars (`ADMIN_USERNAME`, `ADMIN_PASSWORD`)
+- Cookie: `ju-artes-admin`, criptografado com `SESSION_SECRET`
 
 ### Server Actions (`src/lib/actions/`)
-| File | Exports |
-|------|---------|
+| Arquivo | Exports |
+|---------|---------|
 | `auth.ts` | `loginAction`, `logoutAction` |
 | `products.ts` | `createProduct`, `updateProduct`, `deleteProduct`, `toggleProductAvailability` |
 | `categories.ts` | `createCategory`, `updateCategory`, `deleteCategory` |
 | `settings.ts` | `getSettings`, `updateSettings` |
 | `sales.ts` | `createSale`, `deleteSale`, `getSalesByMonth` |
 
-All actions used directly in `<form action>` must return `Promise<void>`. When wrapping an action that returns data, create a void wrapper in the page file with `"use server"`.
+Todas as actions usadas diretamente em `<form action>` devem retornar `Promise<void>`. Quando uma action retorna dados, criar um wrapper void na própria page com `"use server"`.
 
-### Data flow — public site
-Home sections (`FeaturedProducts`, `Categories`, `Hero`) are `async` Server Components that query Prisma directly. The catalog page (`src/app/catalogo/page.tsx`) queries the DB server-side and passes serialised data as props to `CatalogClient` (a Client Component that handles filtering/sorting with `useState`/`useMemo`).
-
-`src/lib/getSettings.ts` exports a `React.cache`-wrapped function that fetches `SiteSettings` once per request, shared across all Server Components that need it.
-
-### Key utilities
-- `src/lib/whatsapp.ts` — `buildWhatsAppUrl({ productName?, price?, customMessage?, settings? })`: always use this for WhatsApp links; never hardcode `wa.me` URLs. Pass `settings` from `getSettings()` to use DB values.
-- `src/lib/format.ts` — `formatBRL(value: number)`: always use for prices; never interpolate `R$ ${price}`
+### Utilitários principais
+- `src/lib/whatsapp.ts` — `buildWhatsAppUrl({ productName?, price?, customMessage?, settings? })`: sempre usar para links WhatsApp; nunca hardcodar `wa.me`. Passar `settings` de `getSettings()`.
+- `src/lib/format.ts` — `formatBRL(value: number)`: sempre usar para preços; nunca interpolar `R$ ${price}`
 - `src/lib/utils.ts` — `cn(...inputs)` (clsx + tailwind-merge)
+- `src/lib/getSettings.ts` — `getSettings()` com `React.cache()`: busca `SiteSettings` do banco
+- `src/lib/mapProduct.ts` — `toProductCardData()` + `buildCatMap()`
 
-### Global layout (`src/app/layout.tsx`)
-Wraps the public site with `Header`, `Footer`, and `WhatsAppFloatingButton`. Admin routes get their own layout from `(auth)/layout.tsx` — the root layout renders around that too (fonts, body background), but the Header/Footer are not shown.
+### Layout global (`src/app/layout.tsx`)
+Async Server Component — busca settings e constrói `whatsappUrl`, passando para `Header`. `Footer` e `WhatsAppFloatingButton` buscam settings diretamente via `getSettings()`. As rotas admin têm seu próprio layout em `(auth)/layout.tsx` que usa `AdminShell`.
 
-## Critical conventions
+## Convenções críticas
 
-### Never import brand icons from lucide-react
-`lucide-react@1.16+` removed Instagram and WhatsApp icons. Use:
+### Nunca importar brand icons do lucide-react
+`lucide-react@1.16+` removeu Instagram e WhatsApp. Usar:
 - `src/components/WhatsAppIcon.tsx`
 - `src/components/InstagramIcon.tsx`
 
 ### TypeScript
-Strict mode. `any` and `@ts-ignore` are banned.
+Strict mode. `any` e `@ts-ignore` proibidos.
 
-### All WhatsApp/Instagram links
-Must have `target="_blank" rel="noopener noreferrer"`.
+### Todos os links WhatsApp/Instagram
+Devem ter `target="_blank" rel="noopener noreferrer"`.
 
-### `"use client"` boundary
-Use only for components that need state, effects, browser APIs, or `useSearchParams`. All home sections are Server Components. Admin forms (`ProductForm`, `CategoryForm`, `SaleForm`) are Client Components because they need local state for image preview and controlled inputs.
+### Boundary `"use client"`
+Usar apenas quando o componente precisa de estado, efeitos, APIs de browser ou `useSearchParams`. Todas as seções da home são Server Components. Formulários do admin (`ProductForm`, `CategoryForm`, `SaleForm`) são Client Components por precisarem de estado local.
 
-### Image uploads
-`createProduct` / `updateProduct` write uploaded files to `public/products/<slug>.<ext>` via `fs.writeFile`. The stored `image` field is the public path `/products/<slug>.<ext>`. `ProductCard` renders a gradient placeholder when the file doesn't exist — swap to `next/image` once real photos are available.
+### Header é Client Component
+`Header` tem scroll detection e drawer state. Por isso aceita `whatsappUrl: string` como prop — o layout async faz `getSettings()` e passa a URL. Nunca chamar `buildWhatsAppUrl()` diretamente dentro do `Header`.
+
+### Upload de imagens
+`createProduct` / `updateProduct` gravam o arquivo em `public/products/<slug>.<ext>` via `fs.writeFile`. O campo `image` armazena o path público `/products/<slug>.<ext>`. `ProductCard` renderiza placeholder com gradiente enquanto não há foto real.
 
 ## Design system
 
-Tailwind config (`tailwind.config.ts`) extends with:
-- **Palette**: `terracotta` (primary `#B5654A`), `copper` (accent), `sage`, `cream`, `sand`, `ink` — each with 50–900 or named scales
-- **Semantic aliases**: `primary`, `secondary`, `accent`, `muted`, `background`, `foreground`, `border`, `ring`
-- **Shadows**: `shadow-warm`, `shadow-warm-lg`, `shadow-soft` (brown-toned — never use gray shadows)
-- **Animations**: `animate-fade-in`, `animate-fade-in-up`, `animate-soft-pulse`, `animate-marquee`
-- **Container**: centered, padded, max-width 1320px at 2xl
+`tailwind.config.ts` estende com:
+- **Paleta**: `terracotta` (primária `#B5654A`), `copper` (acento), `sage`, `cream`, `sand`, `ink` — escalas 50–900 ou named scales
+- **Aliases semânticos**: `primary`, `secondary`, `accent`, `muted`, `background`, `foreground`, `border`, `ring`
+- **Sombras**: `shadow-warm`, `shadow-warm-lg`, `shadow-soft` (tons marrons — nunca cinza)
+- **Animações**: `animate-fade-in`, `animate-fade-in-up`, `animate-soft-pulse`, `animate-marquee`
+- **Container**: centralizado, paddado, max-width 1320px em 2xl
 
-`globals.css`: `body::before` SVG noise texture, `.blob` utility, terracotta `::selection`.
+`globals.css`: textura SVG noise no `body::before`, utility `.blob`, `::selection` em terracota.
 
-Admin UI reuses the same palette: `cream-50` backgrounds, `terracotta-500` primary buttons, `ink` text, `shadow-soft` cards.
+Admin reutiliza a mesma paleta: `cream-50` de fundo, `terracotta-500` em botões primários, `shadow-soft` em cards.
 
-## Environment variables
+## Variáveis de ambiente
 
-| Variable | Where | Purpose |
-|----------|-------|---------|
-| `DATABASE_URL` | `.env` | SQLite path — `file:./dev.db` (relative to schema) |
-| `ADMIN_USERNAME` | `.env.local` | Admin login username |
-| `ADMIN_PASSWORD` | `.env.local` | Admin login password |
-| `SESSION_SECRET` | `.env.local` | iron-session encryption key (min 32 chars) |
+| Variável | Arquivo | Finalidade |
+|----------|---------|------------|
+| `DATABASE_URL` | `.env` + Vercel | Neon Postgres (pooled) |
+| `DATABASE_URL_UNPOOLED` | `.env.local` + Vercel | Neon Postgres (direto, para migrations) |
+| `ADMIN_USERNAME` | `.env.local` + Vercel | Login do admin |
+| `ADMIN_PASSWORD` | `.env.local` + Vercel | Senha do admin |
+| `SESSION_SECRET` | `.env.local` + Vercel | Chave de criptografia do cookie (mín. 32 chars) |
 
-`.env` is committed (contains only `DATABASE_URL`, no secrets). `.env.local` is gitignored.
+`.env` está commitado mas contém apenas placeholders. `.env.local` é gitignored (credenciais reais). Para sincronizar localmente: `vercel env pull .env.local`.
 
-## Placeholders to replace before launch
+## Antes de ir para produção
 
-| Location | Field | Current value |
-|----------|-------|---------------|
-| Admin → Configurações | WhatsApp número | `5584999999999` |
-| Admin → Configurações | Instagram | `juartes_costuracriativa` |
-| `src/app/layout.tsx` | `metadataBase` | `https://juartes.example.com` |
-| `/public/og.png` | OG image | missing (create 1200×630) |
-| `.env.local` | `ADMIN_PASSWORD` | `juartes2024` — change before deploy |
-| `.env.local` | `SESSION_SECRET` | replace with 32+ random chars |
+| Local | Campo | Ação |
+|-------|-------|------|
+| Admin → Configurações | WhatsApp número | Trocar `5584999999999` pelo número real |
+| Admin → Configurações | Instagram | Trocar pelo handle real |
+| Admin → Configurações | Email | Adicionar email de contato |
+| `src/app/layout.tsx` | `metadataBase` | Trocar `https://juartes.example.com` pelo domínio real |
+| `/public/og.png` | OG image | Criar imagem 1200×630 |
+| Vercel → Settings | `ADMIN_PASSWORD` | Trocar `juartes2024` por senha forte |
+| Vercel → Settings | `SESSION_SECRET` | Gerar 32+ chars aleatórios |
 
-After changing WhatsApp/Instagram in Admin → Configurações, values update live on the public site without any code change.
+Qualquer mudança em contato ou catálogo feita no admin reflete imediatamente no site sem deploy.
