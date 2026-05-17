@@ -4,22 +4,37 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { prisma } from "@/lib/db"
 
+export type SaleFormState = {
+  success?: string
+  error?: string
+} | null
+
 const SaleSchema = z.object({
   productSlug: z.string().min(1),
   productName: z.string().min(1),
-  price: z.coerce.number().positive(),
+  price: z.coerce.number().positive("Valor deve ser positivo"),
   month: z.coerce.number().min(1).max(12),
   year: z.coerce.number().min(2020),
 })
 
-export async function createSale(formData: FormData) {
+export async function createSale(
+  _prevState: SaleFormState,
+  formData: FormData
+): Promise<SaleFormState> {
   const parsed = SaleSchema.safeParse(Object.fromEntries(formData))
-  if (!parsed.success) return { error: parsed.error.flatten().fieldErrors }
+  if (!parsed.success) {
+    return { error: "Preencha todos os campos corretamente." }
+  }
 
-  await prisma.saleRecord.create({ data: parsed.data })
+  try {
+    await prisma.saleRecord.create({ data: parsed.data })
+  } catch {
+    return { error: "Erro ao registrar venda. Tente novamente." }
+  }
+
   revalidatePath("/admin/vendas")
   revalidatePath("/admin/dashboard")
-  return { success: true }
+  return { success: "Venda registrada com sucesso!" }
 }
 
 export async function deleteSale(id: string) {

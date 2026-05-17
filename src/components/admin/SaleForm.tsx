@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { createSale } from "@/lib/actions/sales"
+import { useEffect, useRef, useState } from "react"
+import { useFormState } from "react-dom"
+import { createSale, type SaleFormState } from "@/lib/actions/sales"
 import { formatBRL } from "@/lib/format"
+import { FormAlert } from "@/components/admin/FormAlert"
 
 type Product = { slug: string; name: string; price: number }
 
@@ -10,13 +12,26 @@ export function SaleForm({ products }: { products: Product[] }) {
   const now = new Date()
   const [price, setPrice] = useState("")
   const [productName, setProductName] = useState("")
+  const formRef = useRef<HTMLFormElement>(null)
 
-  async function handleSubmit(formData: FormData): Promise<void> {
-    await createSale(formData)
+  async function action(prevState: SaleFormState, formData: FormData): Promise<SaleFormState> {
+    return createSale(prevState, formData)
   }
 
+  const [state, formAction] = useFormState(action, null)
+
+  useEffect(() => {
+    if (state?.success) {
+      formRef.current?.reset()
+      setPrice("")
+      setProductName("")
+    }
+  }, [state])
+
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form ref={formRef} action={formAction} className="space-y-4">
+      <FormAlert success={state?.success} error={state?.error} />
+
       <input type="hidden" name="productName" value={productName} />
 
       <div className="space-y-1.5">
@@ -43,24 +58,18 @@ export function SaleForm({ products }: { products: Product[] }) {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <label className="block text-xs uppercase tracking-[0.18em] text-ink-muted">Valor (R$)</label>
-          <input
-            name="price"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            className="w-full rounded-xl border border-cream-300 bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-terracotta-400 focus:ring-2 focus:ring-terracotta-200"
-          />
+          <input name="price" type="number" step="0.01" min="0" required value={price} onChange={(e) => setPrice(e.target.value)}
+            className="w-full rounded-xl border border-cream-300 bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-terracotta-400 focus:ring-2 focus:ring-terracotta-200" />
         </div>
         <div className="space-y-1.5">
           <label className="block text-xs uppercase tracking-[0.18em] text-ink-muted">Mês</label>
-          <input name="month" type="number" min="1" max="12" defaultValue={now.getMonth() + 1} required className="w-full rounded-xl border border-cream-300 bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-terracotta-400 focus:ring-2 focus:ring-terracotta-200" />
+          <input name="month" type="number" min="1" max="12" defaultValue={now.getMonth() + 1} required
+            className="w-full rounded-xl border border-cream-300 bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-terracotta-400 focus:ring-2 focus:ring-terracotta-200" />
         </div>
         <div className="space-y-1.5">
           <label className="block text-xs uppercase tracking-[0.18em] text-ink-muted">Ano</label>
-          <input name="year" type="number" min="2020" defaultValue={now.getFullYear()} required className="w-full rounded-xl border border-cream-300 bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-terracotta-400 focus:ring-2 focus:ring-terracotta-200" />
+          <input name="year" type="number" min="2020" defaultValue={now.getFullYear()} required
+            className="w-full rounded-xl border border-cream-300 bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-terracotta-400 focus:ring-2 focus:ring-terracotta-200" />
         </div>
       </div>
 

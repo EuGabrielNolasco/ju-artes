@@ -1,19 +1,23 @@
 "use client"
 
 import { useRef, useState } from "react"
+import { useFormState } from "react-dom"
 import Image from "next/image"
 import type { Category, Product } from "@prisma/client"
+import type { ProductFormState } from "@/lib/actions/products"
+import { FormAlert } from "@/components/admin/FormAlert"
 
 type Props = {
-  action: (formData: FormData) => Promise<void>
+  action: (prevState: ProductFormState, formData: FormData) => Promise<ProductFormState>
   categories: Category[]
   product?: Product
 }
 
 export function ProductForm({ action, categories, product }: Props) {
+  const [state, formAction] = useFormState(action, null)
   const [preview, setPreview] = useState<string>(product?.image ?? "")
   const [materials, setMaterials] = useState<string[]>(
-    product?.materials ? JSON.parse(product.materials) : []
+    product?.materials ? (JSON.parse(product.materials) as string[]) : []
   )
   const [tagInput, setTagInput] = useState("")
   const formRef = useRef<HTMLFormElement>(null)
@@ -25,18 +29,23 @@ export function ProductForm({ action, categories, product }: Props) {
   }
 
   return (
-    <form ref={formRef} action={action} className="space-y-5 max-w-2xl">
+    <form ref={formRef} action={formAction} className="space-y-5 max-w-2xl">
       <input type="hidden" name="materials" value={JSON.stringify(materials)} />
 
+      <FormAlert
+        success={undefined}
+        error={state?.error ?? (state?.fieldErrors ? "Corrija os erros abaixo." : undefined)}
+      />
+
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Nome" name="name" defaultValue={product?.name} required />
-        <Field label="Slug" name="slug" defaultValue={product?.slug} required pattern="[a-z0-9-]+" title="Apenas letras minúsculas, números e hífens" />
+        <Field label="Nome" name="name" defaultValue={product?.name} required error={state?.fieldErrors?.name?.[0]} />
+        <Field label="Slug" name="slug" defaultValue={product?.slug} required pattern="[-a-z0-9]+" title="Apenas letras minúsculas, números e hífens" error={state?.fieldErrors?.slug?.[0]} />
       </div>
 
-      <Field label="Descrição" name="description" as="textarea" defaultValue={product?.description} required />
+      <Field label="Descrição" name="description" as="textarea" defaultValue={product?.description} required error={state?.fieldErrors?.description?.[0]} />
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Preço (R$)" name="price" type="number" step="0.01" min="0" defaultValue={product?.price} required />
+        <Field label="Preço (R$)" name="price" type="number" step="0.01" min="0" defaultValue={product?.price} required error={state?.fieldErrors?.price?.[0]} />
         <div className="space-y-1.5">
           <label className="block text-xs uppercase tracking-[0.18em] text-ink-muted">Categoria</label>
           <select
@@ -118,14 +127,16 @@ export function ProductForm({ action, categories, product }: Props) {
   )
 }
 
-function Field({ label, name, as, type = "text", ...props }: {
+function Field({ label, name, as, type = "text", error, ...props }: {
   label: string
   name: string
   as?: "textarea"
   type?: string
+  error?: string
   [key: string]: unknown
 }) {
-  const cls = "w-full rounded-xl border border-cream-300 bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-terracotta-400 focus:ring-2 focus:ring-terracotta-200 transition-all"
+  const cls = "w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-ink outline-none focus:ring-2 focus:ring-terracotta-200 transition-all " +
+    (error ? "border-red-300 focus:border-red-400" : "border-cream-300 focus:border-terracotta-400")
   return (
     <div className="space-y-1.5">
       <label className="block text-xs uppercase tracking-[0.18em] text-ink-muted">{label}</label>
@@ -133,6 +144,7 @@ function Field({ label, name, as, type = "text", ...props }: {
         ? <textarea name={name} rows={3} className={cls} {...props as React.TextareaHTMLAttributes<HTMLTextAreaElement>} />
         : <input name={name} type={type} className={cls} {...props as React.InputHTMLAttributes<HTMLInputElement>} />
       }
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
 }

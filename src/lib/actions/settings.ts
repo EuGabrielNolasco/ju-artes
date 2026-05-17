@@ -4,32 +4,46 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { prisma } from "@/lib/db"
 
+export type SettingsFormState = {
+  success?: string
+  error?: string
+} | null
+
 const SettingsSchema = z.object({
-  whatsappNumber: z.string().min(1),
-  whatsappMessage: z.string().min(1),
-  instagram: z.string().min(1),
-  instagramUrl: z.string().url(),
-  email: z.string().email().or(z.literal("")),
-  artisanName: z.string().min(1),
-  city: z.string().min(1),
+  whatsappNumber: z.string().min(1, "Número obrigatório"),
+  whatsappMessage: z.string().min(1, "Mensagem obrigatória"),
+  instagram: z.string().min(1, "Instagram obrigatório"),
+  instagramUrl: z.string().url("URL inválida"),
+  email: z.string().email("Email inválido").or(z.literal("")),
+  artisanName: z.string().min(1, "Nome obrigatório"),
+  city: z.string().min(1, "Cidade obrigatória"),
 })
 
 export async function getSettings() {
-  const settings = await prisma.siteSettings.findUnique({ where: { id: "main" } })
-  return settings
+  return prisma.siteSettings.findUnique({ where: { id: "main" } })
 }
 
-export async function updateSettings(formData: FormData) {
+export async function updateSettings(
+  _prevState: SettingsFormState,
+  formData: FormData
+): Promise<SettingsFormState> {
   const parsed = SettingsSchema.safeParse(Object.fromEntries(formData))
-  if (!parsed.success) return { error: parsed.error.flatten().fieldErrors }
+  if (!parsed.success) {
+    const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0]
+    return { error: first ?? "Verifique os campos obrigatórios." }
+  }
 
-  await prisma.siteSettings.upsert({
-    where: { id: "main" },
-    update: parsed.data,
-    create: { id: "main", ...parsed.data },
-  })
+  try {
+    await prisma.siteSettings.upsert({
+      where: { id: "main" },
+      update: parsed.data,
+      create: { id: "main", ...parsed.data },
+    })
+  } catch {
+    return { error: "Erro ao salvar configurações. Tente novamente." }
+  }
 
   revalidatePath("/")
   revalidatePath("/admin/configuracoes")
-  return { success: true }
+  return { success: "Configurações salvas com sucesso!" }
 }

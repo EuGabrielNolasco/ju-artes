@@ -1,6 +1,9 @@
 "use client"
 
+import { useFormState } from "react-dom"
 import type { Category } from "@prisma/client"
+import type { CategoryFormState } from "@/lib/actions/categories"
+import { FormAlert } from "@/components/admin/FormAlert"
 
 const GRADIENTS = [
   { label: "Terracota → Cobre", value: "from-terracotta-400 to-copper-500" },
@@ -13,15 +16,18 @@ const GRADIENTS = [
 const ICONS = ["ShoppingBag", "Baby", "Home", "Sparkles"] as const
 
 type Props = {
-  action: (formData: FormData) => Promise<void>
-  categories?: Category[]
+  action: (prevState: CategoryFormState, formData: FormData) => Promise<CategoryFormState>
   category?: Category
 }
 
 export function CategoryForm({ action, category }: Props) {
+  const [state, formAction] = useFormState(action, null)
+
   return (
-    <form action={action} className="space-y-5 max-w-lg">
-      <Field label="Slug" name="slug" defaultValue={category?.slug} required pattern="[a-z0-9-]+" title="Apenas letras minúsculas, números e hífens" />
+    <form action={formAction} className="space-y-5 max-w-lg">
+      <FormAlert error={state?.error} />
+
+      <Field label="Slug" name="slug" defaultValue={category?.slug} required pattern="[-a-z0-9]+" title="Apenas letras minúsculas, números e hífens" />
       <Field label="Nome" name="name" defaultValue={category?.name} required />
       <Field label="Descrição" name="description" as="textarea" defaultValue={category?.description} required />
 
