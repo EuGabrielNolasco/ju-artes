@@ -20,35 +20,44 @@ function CategoryCard({ category }: { category: Category }) {
   return (
     <Link
       href={`/catalogo?categoria=${category.slug}`}
-      className={cn(
-        "group relative flex flex-col gap-6 overflow-hidden rounded-3xl p-7 shadow-soft",
-        "ring-1 ring-inset ring-cream-50/15",
-        "bg-gradient-to-br text-cream-50 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-warm-lg",
-        category.gradient
-      )}
+      className="group relative flex flex-col gap-5 overflow-hidden rounded-3xl border border-cream-300/70 bg-cream-50 p-7 shadow-soft transition-all duration-300 hover:-translate-y-1.5 hover:border-terracotta-200 hover:shadow-warm-lg"
     >
+      {/* Gradient accent strip — top edge */}
+      <div
+        className={cn(
+          "absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r",
+          category.gradient
+        )}
+        aria-hidden
+      />
+
       {/* Arrow — top right */}
-      <div className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-cream-50/15 backdrop-blur-sm transition-all duration-300 group-hover:bg-cream-50/28 group-hover:rotate-12">
+      <div className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-cream-100 text-terracotta-600 transition-all duration-300 group-hover:bg-terracotta-500 group-hover:text-cream-50 group-hover:rotate-12">
         <ArrowUpRight className="h-4 w-4" />
       </div>
 
-      {/* Icon */}
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cream-50/20 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+      {/* Icon with gradient background */}
+      <div
+        className={cn(
+          "flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br text-cream-50 shadow-soft transition-transform duration-300 group-hover:scale-110",
+          category.gradient
+        )}
+      >
         <Icon className="h-6 w-6" strokeWidth={1.6} />
       </div>
 
-      {/* Text */}
+      {/* Text — ink on cream, always legível */}
       <div className="space-y-2">
-        <h3 className="font-serif text-2xl">{category.name}</h3>
-        <p className="text-[0.84rem] leading-relaxed text-cream-50/85">
+        <h3 className="font-serif text-2xl text-ink">{category.name}</h3>
+        <p className="text-[0.84rem] leading-relaxed text-ink-muted">
           {category.description}
         </p>
       </div>
 
       {/* Count */}
-      <div className="flex items-center gap-2">
-        <span className="h-px flex-1 bg-cream-50/20" />
-        <span className="text-[0.6rem] uppercase tracking-[0.22em] text-cream-50/75">
+      <div className="mt-auto flex items-center gap-2">
+        <span className="h-px flex-1 bg-cream-300/60" />
+        <span className="text-[0.6rem] uppercase tracking-[0.22em] text-copper-600">
           {count} {count === 1 ? "peça disponível" : "peças disponíveis"}
         </span>
       </div>
