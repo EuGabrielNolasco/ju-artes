@@ -2,6 +2,7 @@ import Link from "next/link"
 import { CheckCircle2, MessageCircle, ShoppingBag, Truck } from "lucide-react"
 import { WhatsAppIcon } from "@/components/WhatsAppIcon"
 import { buildWhatsAppUrl } from "@/lib/whatsapp"
+import { getSettings } from "@/lib/getSettings"
 
 const steps = [
   {
@@ -30,8 +31,9 @@ const guarantees = [
   "Cada peça revisada antes de sair das mãos da Ju",
 ]
 
-export function HowToBuy() {
-  const whatsappUrl = buildWhatsAppUrl()
+export async function HowToBuy() {
+  const settings = await getSettings()
+  const whatsappUrl = buildWhatsAppUrl({ settings })
 
   return (
     <section className="bg-cream-100/70 py-24 sm:py-32">

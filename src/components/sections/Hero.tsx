@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { WhatsAppIcon } from "@/components/WhatsAppIcon"
 import { buildWhatsAppUrl } from "@/lib/whatsapp"
+import { getSettings } from "@/lib/getSettings"
 import { prisma } from "@/lib/db"
 import { formatBRL } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -85,7 +86,8 @@ function ProductTeaserCard({
 }
 
 export async function Hero() {
-  const whatsappUrl = buildWhatsAppUrl()
+  const settings = await getSettings()
+  const whatsappUrl = buildWhatsAppUrl({ settings })
   const rows = await prisma.product.findMany({
     where: { featured: true },
     orderBy: { createdAt: "desc" },

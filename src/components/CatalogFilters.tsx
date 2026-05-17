@@ -1,7 +1,7 @@
 "use client"
 
 import { Search } from "lucide-react"
-import type { Category } from "@/data/categories"
+import type { CategoryData as Category } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 

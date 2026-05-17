@@ -1,22 +1,20 @@
 import Link from "next/link"
 import { Star } from "lucide-react"
-import type { Product } from "@/data/products"
-import { categories } from "@/data/categories"
+import type { ProductCardData } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatBRL } from "@/lib/format"
 import { buildWhatsAppUrl } from "@/lib/whatsapp"
 import { cn } from "@/lib/utils"
 
-type Props = { product: Product }
+type Props = { product: ProductCardData }
 
 export function ProductCard({ product }: Props) {
-  const category = categories.find((c) => c.slug === product.category)
-  const initial = product.name.charAt(0).toUpperCase()
   const whatsappUrl = buildWhatsAppUrl({
     productName: product.name,
     price: product.price,
   })
+  const initial = product.name.charAt(0).toUpperCase()
 
   return (
     <article
@@ -28,43 +26,22 @@ export function ProductCard({ product }: Props) {
     >
       {/* Image area */}
       <div className="relative aspect-[4/5] overflow-hidden">
-        {/* Gradient bg with scale on hover */}
         <div
           className={cn(
             "absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-[1.04]",
-            category?.gradient ?? "from-terracotta-300 to-copper-400"
+            product.gradient || "from-terracotta-300 to-copper-400"
           )}
           aria-hidden
         />
 
         {/* Textile stitch SVG overlay */}
-        <svg
-          aria-hidden
-          className="absolute inset-0 h-full w-full"
-          style={{ opacity: 0.09 }}
-        >
+        <svg aria-hidden className="absolute inset-0 h-full w-full" style={{ opacity: 0.09 }}>
           <defs>
-            <pattern
-              id={`stitch-${product.id}`}
-              x="0"
-              y="0"
-              width="18"
-              height="18"
-              patternUnits="userSpaceOnUse"
-            >
-              <path
-                d="M9 0 L9 9 M0 9 L9 9"
-                stroke="white"
-                strokeWidth="0.8"
-                fill="none"
-              />
+            <pattern id={`stitch-${product.slug}`} x="0" y="0" width="18" height="18" patternUnits="userSpaceOnUse">
+              <path d="M9 0 L9 9 M0 9 L9 9" stroke="white" strokeWidth="0.8" fill="none" />
             </pattern>
           </defs>
-          <rect
-            width="100%"
-            height="100%"
-            fill={`url(#stitch-${product.id})`}
-          />
+          <rect width="100%" height="100%" fill={`url(#stitch-${product.slug})`} />
         </svg>
 
         {/* Monogram */}
@@ -74,22 +51,16 @@ export function ProductCard({ product }: Props) {
           </span>
         </div>
 
-        {/* Category badge — top left */}
-        {category && (
-          <Badge
-            variant="soft"
-            className="absolute left-4 top-4 bg-cream-50/95 text-ink-soft shadow-soft"
-          >
-            {category.name}
+        {/* Category badge */}
+        {product.categoryName && (
+          <Badge variant="soft" className="absolute left-4 top-4 bg-cream-50/95 text-ink-soft shadow-soft">
+            {product.categoryName}
           </Badge>
         )}
 
-        {/* Featured star — top right */}
+        {/* Featured star */}
         {product.featured && product.available && (
-          <span
-            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-cream-50/90 shadow-soft"
-            aria-label="Destaque da estação"
-          >
+          <span className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-cream-50/90 shadow-soft" aria-label="Destaque da estação">
             <Star className="h-3.5 w-3.5 fill-copper-400 text-copper-400" />
           </span>
         )}
@@ -98,23 +69,17 @@ export function ProductCard({ product }: Props) {
         {!product.available && (
           <>
             <div className="absolute inset-0 bg-ink/50" aria-hidden />
-            <Badge
-              variant="unavailable"
-              className="absolute right-4 top-4 uppercase tracking-widest"
-            >
+            <Badge variant="unavailable" className="absolute right-4 top-4 uppercase tracking-widest">
               Indisponível
             </Badge>
           </>
         )}
 
-        {/* Materials bar inside image */}
+        {/* Materials bar */}
         {product.available && product.materials.length > 0 && (
           <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/40 px-4 pb-4 pt-8">
             {product.materials.slice(0, 2).map((m) => (
-              <span
-                key={m}
-                className="rounded-full bg-cream-50/20 px-2.5 py-0.5 text-[0.58rem] uppercase tracking-[0.18em] text-cream-50/95 backdrop-blur-sm"
-              >
+              <span key={m} className="rounded-full bg-cream-50/20 px-2.5 py-0.5 text-[0.58rem] uppercase tracking-[0.18em] text-cream-50/95 backdrop-blur-sm">
                 {m}
               </span>
             ))}
@@ -124,22 +89,13 @@ export function ProductCard({ product }: Props) {
 
       {/* Card body */}
       <div className="flex flex-1 flex-col gap-2 p-5">
-        <h3 className="font-serif text-xl leading-snug text-ink">
-          {product.name}
-        </h3>
-        <p className="text-sm leading-relaxed text-ink-muted line-clamp-2">
-          {product.description}
-        </p>
+        <h3 className="font-serif text-xl leading-snug text-ink">{product.name}</h3>
+        <p className="text-sm leading-relaxed text-ink-muted line-clamp-2">{product.description}</p>
 
-        {/* Price + CTA */}
-        <div className="mt-auto flex items-end justify-between gap-2 pt-3 border-t border-cream-200/60">
+        <div className="mt-auto flex items-end justify-between gap-2 border-t border-cream-200/60 pt-3">
           <div>
-            <span className="font-serif text-2xl leading-none text-terracotta-700">
-              {formatBRL(product.price)}
-            </span>
-            <span className="ml-1.5 text-[0.6rem] uppercase tracking-[0.15em] text-ink-muted">
-              à vista
-            </span>
+            <span className="font-serif text-2xl leading-none text-terracotta-700">{formatBRL(product.price)}</span>
+            <span className="ml-1.5 text-[0.6rem] uppercase tracking-[0.15em] text-ink-muted">à vista</span>
           </div>
 
           {product.available ? (
@@ -153,9 +109,7 @@ export function ProductCard({ product }: Props) {
               Tenho interesse
             </Link>
           ) : (
-            <Button variant="soft" size="sm" disabled aria-disabled="true">
-              Em breve
-            </Button>
+            <Button variant="soft" size="sm" disabled aria-disabled="true">Em breve</Button>
           )}
         </div>
       </div>

@@ -1,27 +1,16 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { prisma } from "@/lib/db"
+import { buildCatMap, toProductCardData } from "@/lib/mapProduct"
 import { ProductCard } from "@/components/ProductCard"
-import type { Product } from "@prisma/client"
-
-function toCardProduct(p: Product) {
-  return {
-    id: p.slug,
-    slug: p.slug,
-    name: p.name,
-    description: p.description,
-    price: p.price,
-    category: p.category,
-    image: p.image,
-    featured: p.featured,
-    available: p.available,
-    materials: JSON.parse(p.materials ?? "[]") as string[],
-  }
-}
 
 export async function FeaturedProducts() {
-  const rows = await prisma.product.findMany({ where: { featured: true }, orderBy: { createdAt: "desc" } })
-  const featured = rows.map(toCardProduct)
+  const [rows, catRows] = await Promise.all([
+    prisma.product.findMany({ where: { featured: true }, orderBy: { createdAt: "desc" } }),
+    prisma.category.findMany({ select: { slug: true, name: true, gradient: true } }),
+  ])
+  const catMap = buildCatMap(catRows)
+  const featured = rows.map((p) => toProductCardData(p, catMap))
 
   return (
     <section className="py-20 sm:py-28">

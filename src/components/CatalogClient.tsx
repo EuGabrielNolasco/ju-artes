@@ -5,12 +5,11 @@ import { useSearchParams } from "next/navigation"
 import { SearchX } from "lucide-react"
 import { ProductCard } from "@/components/ProductCard"
 import { CatalogFilters, type SortOption } from "@/components/CatalogFilters"
-import type { Product } from "@/data/products"
-import type { Category } from "@/data/categories"
+import type { ProductCardData, CategoryData } from "@/lib/types"
 
 type Props = {
-  products: Product[]
-  categories: Category[]
+  products: ProductCardData[]
+  categories: CategoryData[]
 }
 
 export function CatalogClient({ products, categories }: Props) {

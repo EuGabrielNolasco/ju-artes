@@ -5,7 +5,6 @@ import Link from "next/link"
 import { Menu, Scissors, X } from "lucide-react"
 import { siteConfig } from "@/config/site"
 import { cn } from "@/lib/utils"
-import { buildWhatsAppUrl } from "@/lib/whatsapp"
 
 const navItems = [
   { href: "/", label: "Início" },
@@ -14,7 +13,9 @@ const navItems = [
   { href: "/#contato", label: "Contato" },
 ]
 
-export function Header() {
+type HeaderProps = { whatsappUrl: string }
+
+export function Header({ whatsappUrl }: HeaderProps) {
   const [open, setOpen] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
 
@@ -31,8 +32,6 @@ export function Header() {
       document.body.style.overflow = ""
     }
   }, [open])
-
-  const whatsappUrl = buildWhatsAppUrl()
 
   return (
     <>

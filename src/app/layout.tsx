@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next"
 import { Cormorant_Garamond, Jost } from "next/font/google"
 import "./globals.css"
+import { siteConfig } from "@/config/site"
+import { getSettings } from "@/lib/getSettings"
+import { buildWhatsAppUrl } from "@/lib/whatsapp"
 import { Header } from "@/components/Header"
 import { Footer } from "@/components/Footer"
 import { WhatsAppFloatingButton } from "@/components/WhatsAppFloatingButton"
-import { siteConfig } from "@/config/site"
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin", "latin-ext"],
@@ -27,29 +29,14 @@ export const metadata: Metadata = {
     template: `%s · ${siteConfig.name}`,
   },
   description: siteConfig.description,
-  keywords: [
-    "artesanato",
-    "costura criativa",
-    "bolsas artesanais",
-    "bolsa de tecido",
-    "necessaire",
-    "babador",
-    "Ju Artes",
-  ],
+  keywords: ["artesanato", "costura criativa", "bolsas artesanais", "bolsa de tecido", "necessaire", "babador", "Ju Artes"],
   openGraph: {
     title: `${siteConfig.name} — ${siteConfig.tagline}`,
     description: siteConfig.description,
     type: "website",
     locale: "pt_BR",
     siteName: siteConfig.name,
-    images: [
-      {
-        url: "/og.png",
-        width: 1200,
-        height: 630,
-        alt: `${siteConfig.name} · ${siteConfig.tagline}`,
-      },
-    ],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: `${siteConfig.name} · ${siteConfig.tagline}` }],
   },
   twitter: {
     card: "summary_large_image",
@@ -65,13 +52,14 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const settings = await getSettings()
+  const whatsappUrl = buildWhatsAppUrl({ settings })
+
   return (
     <html lang="pt-BR" className={`${cormorant.variable} ${jost.variable}`}>
       <body className="min-h-screen flex flex-col">
-        <Header />
+        <Header whatsappUrl={whatsappUrl} />
         <main className="flex-1">{children}</main>
         <Footer />
         <WhatsAppFloatingButton />

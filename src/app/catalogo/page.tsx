@@ -1,6 +1,8 @@
 import { Suspense } from "react"
 import { prisma } from "@/lib/db"
+import { buildCatMap, toProductCardData } from "@/lib/mapProduct"
 import { CatalogClient } from "@/components/CatalogClient"
+import type { CategoryData } from "@/lib/types"
 
 export default async function CatalogPage() {
   const [productRows, categoryRows] = await Promise.all([
@@ -8,25 +10,15 @@ export default async function CatalogPage() {
     prisma.category.findMany({ orderBy: { name: "asc" } }),
   ])
 
-  const products = productRows.map((p) => ({
-    id: p.slug,
-    slug: p.slug,
-    name: p.name,
-    description: p.description,
-    price: p.price,
-    category: p.category,
-    image: p.image,
-    featured: p.featured,
-    available: p.available,
-    materials: JSON.parse(p.materials ?? "[]") as string[],
-  }))
+  const catMap = buildCatMap(categoryRows)
+  const products = productRows.map((p) => toProductCardData(p, catMap))
 
-  const categories = categoryRows.map((c) => ({
+  const categories: CategoryData[] = categoryRows.map((c) => ({
     slug: c.slug,
     name: c.name,
     description: c.description,
     gradient: c.gradient,
-    iconName: c.iconName as "ShoppingBag" | "Baby" | "Home" | "Sparkles",
+    iconName: c.iconName,
   }))
 
   return (
